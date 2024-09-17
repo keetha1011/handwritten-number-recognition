@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handwriting Number Recognition</title>
+    <link rel="stylesheet" href="styles.css"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <h1>Draw a number and convert to 64x1 vector</h1>
+    <canvas id="drawingCanvas" width="400" height="400"></canvas>
+    <br>
+    <div class="button-group-1">
+        <button id="clearButton" class="clearButton">Clear</button>
+    <button id="convertButton" class="convertButton">Convert and Send</button>
+    </div>
+    <div id="prediction"></div>
+
+    <script>
+        const canvas = document.getElementById('drawingCanvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+
+        // Set white background
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        document.getElementById('clearButton').addEventListener('click', clearCanvas);
+        document.getElementById('convertButton').addEventListener('click', convertAndSend);
+
+        function startDrawing(e) {
+            isDrawing = true;
+            draw(e);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            ctx.lineWidth = 40;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = 'black';
+
+            ctx.lineTo(e.clientX - canvas.offsetLeft, e.clientY - canvas.offsetTop);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(e.clientX - canvas.offsetLeft, e.clientY - canvas.offsetTop);
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+            ctx.beginPath();
+        }
+
+        function clearCanvas() {
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function convertAndSend() {
+            // Resize the image to 8x8
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = 8;
+            tempCanvas.height = 8;
+            tempCtx.fillStyle = 'white';
+            tempCtx.fillRect(0, 0, 8, 8);
+            tempCtx.drawImage(canvas, 0, 0, 200, 200, 0, 0, 8, 8);
+
+            // Get image data
+            const imageData = tempCtx.getImageData(0, 0, 8, 8);
+
+            // Convert to 64x1 vector
+            const vector = [];
+            for (let i = 0; i < imageData.data.length; i += 4) {
+                // Convert RGB to grayscale and invert (0 for black, 1 for white)
+                const gray = 1 - (imageData.data[i] + imageData.data[i + 1] + imageData.data[i + 2]) / (3 * 255);
+                vector.push(Number(gray.toFixed(2)));
+            }
+
+            // Send data using fetch
+            fetch('http://localhost:5000/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(vector),
+            })
+            .then(response => response.json())
+            .then(data => {
+
+                document.getElementById('prediction').innerHTML = 'Prediction ' + data["Prediction"];
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                document.getElementById('preview').innerHTML = 'Error: ' + error.message;
+            });
+        }
+    </script>
+</body>
+</html>

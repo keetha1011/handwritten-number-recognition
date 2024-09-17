@@ -1,26 +1,21 @@
-import flet as ft
+from flask import Flask, render_template, request, redirect, url_for, send_file, jsonify
+import model
+from model import prediction
 
-from sklearn import datasets
-from sklearn.model_selection import train_test_split
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import accuracy_score
+app = Flask(__name__)
 
-def damn():
-    iris = datasets.load_iris()
-    x = iris.data
-    y = iris.target
-
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
-
-    knn = KNeighborsClassifier()
-    knn.fit(x_train, y_train)
-    y_pred = knn.predict(x_test)
-    accuracy = accuracy_score(y_test, y_pred)
-    return accuracy
-
-def main(page: ft.Page):
-    acc = damn()
-    page.add(ft.SafeArea(ft.Text("Accuracy_Score: " + str(acc))))
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    return render_template('index.html', prediction="")
 
 
-ft.app(main)
+@app.route("/predict", methods=['POST'])
+def predict():
+    data = request.json
+    return jsonify({"Prediction": str(prediction(data))})
+@app.route('/styles.css', methods=['GET'])
+def styles():
+    return send_file('assets/styles.css')
+
+if __name__ == '__main__':
+    app.run(debug=True)
